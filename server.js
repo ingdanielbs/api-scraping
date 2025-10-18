@@ -189,6 +189,8 @@ app.get("/api/consultar", async (req, res) => {
       const spanNIT = document.querySelector('#span_vIN_VINVEN1NIT');
       const spanCuentadante = document.querySelector('#span_vIN_VINVEN1CUENTADANTE');
       const spanDescripcion = document.querySelector('#span_vIN_VINVEN1DESCRIPCION');
+      const spanDescripActual = document.querySelector('#span_vIN_VINVEN1DESCRIP_ACTUAL');
+      const spanCosto = document.querySelector('#span_vIN_VINVEN1COSTO');
       
       return {
         nitExiste: !!spanNIT,
@@ -196,7 +198,11 @@ app.get("/api/consultar", async (req, res) => {
         cuentadanteExiste: !!spanCuentadante,
         cuentadanteContenido: spanCuentadante ? spanCuentadante.textContent : 'NO EXISTE',
         descripcionExiste: !!spanDescripcion,
-        descripcionContenido: spanDescripcion ? spanDescripcion.textContent : 'NO EXISTE'
+        descripcionContenido: spanDescripcion ? spanDescripcion.textContent : 'NO EXISTE',
+        descripActualExiste: !!spanDescripActual,
+        descripActualContenido: spanDescripActual ? spanDescripActual.textContent : 'NO EXISTE',
+        costoExiste: !!spanCosto,
+        costoContenido: spanCosto ? spanCosto.textContent : 'NO EXISTE'
       };
     });
     
@@ -227,6 +233,8 @@ app.get("/api/consultar", async (req, res) => {
         const spanNIT = document.querySelector('#span_vIN_VINVEN1NIT');
         const spanCuentadante = document.querySelector('#span_vIN_VINVEN1CUENTADANTE');
         const spanDescripcion = document.querySelector('#span_vIN_VINVEN1DESCRIPCION');
+        const spanDescripActual = document.querySelector('#span_vIN_VINVEN1DESCRIP_ACTUAL');
+        const spanCosto = document.querySelector('#span_vIN_VINVEN1COSTO');
         
         return {
           nitExiste: !!spanNIT,
@@ -237,16 +245,24 @@ app.get("/api/consultar", async (req, res) => {
           cuentadanteLleno: spanCuentadante && spanCuentadante.textContent && spanCuentadante.textContent.trim().length > 0,
           descripcionExiste: !!spanDescripcion,
           descripcionContenido: spanDescripcion ? spanDescripcion.textContent?.trim() : '',
-          descripcionLleno: spanDescripcion && spanDescripcion.textContent && spanDescripcion.textContent.trim().length > 0
+          descripcionLleno: spanDescripcion && spanDescripcion.textContent && spanDescripcion.textContent.trim().length > 0,
+          descripActualExiste: !!spanDescripActual,
+          descripActualContenido: spanDescripActual ? spanDescripActual.textContent?.trim() : '',
+          descripActualLleno: spanDescripActual && spanDescripActual.textContent && spanDescripActual.textContent.trim().length > 0,
+          costoExiste: !!spanCosto,
+          costoContenido: spanCosto ? spanCosto.textContent?.trim() : '',
+          costoLleno: spanCosto && spanCosto.textContent && spanCosto.textContent.trim().length > 0 && spanCosto.textContent.trim() !== '$0,00'
         };
       });
       
-      // Esperar a que los 3 campos estén llenos
-      if (estado.nitLleno && estado.cuentadanteLleno && estado.descripcionLleno) {
+      // Esperar a que los 5 campos estén llenos
+      if (estado.nitLleno && estado.cuentadanteLleno && estado.descripcionLleno && estado.descripActualLleno && estado.costoLleno) {
         console.log(`✅ Campos llenados después de ${intentos * 0.5} segundos`);
         console.log(`   - NIT: "${estado.nitContenido}"`);
         console.log(`   - Cuentadante: "${estado.cuentadanteContenido}"`);
         console.log(`   - Descripción: "${estado.descripcionContenido}"`);
+        console.log(`   - Descripción Actual: "${estado.descripActualContenido}"`);
+        console.log(`   - Costo: "${estado.costoContenido}"`);
         break;
       }
       
@@ -255,6 +271,8 @@ app.get("/api/consultar", async (req, res) => {
         console.log(`   - NIT: ${estado.nitLleno ? '✅' : '❌'} "${estado.nitContenido}"`);
         console.log(`   - Cuentadante: ${estado.cuentadanteLleno ? '✅' : '❌'} "${estado.cuentadanteContenido}"`);
         console.log(`   - Descripción: ${estado.descripcionLleno ? '✅' : '❌'} "${estado.descripcionContenido}"`);
+        console.log(`   - Descripción Actual: ${estado.descripActualLleno ? '✅' : '❌'} "${estado.descripActualContenido}"`);
+        console.log(`   - Costo: ${estado.costoLleno ? '✅' : '❌'} "${estado.costoContenido}"`);
       }
       
       intentos++;
@@ -267,22 +285,61 @@ app.get("/api/consultar", async (req, res) => {
     
     console.log("Datos cargados, extrayendo información...");
     
-    // Extraer NIT, Cuentadante y Descripción
+    // Extraer NIT, Cuentadante, Descripción, Descripción Actual, Costo y Atributos
     const datos = await frame.evaluate(() => {
       const spanNIT = document.querySelector('#span_vIN_VINVEN1NIT');
       const spanCuentadante = document.querySelector('#span_vIN_VINVEN1CUENTADANTE');
       const spanDescripcion = document.querySelector('#span_vIN_VINVEN1DESCRIPCION');
+      const spanDescripActual = document.querySelector('#span_vIN_VINVEN1DESCRIP_ACTUAL');
+      const spanCosto = document.querySelector('#span_vIN_VINVEN1COSTO');
+      const spanAtributos = document.querySelector('#span_vDESCRIP_ATRIBUTOS');
+      
+      // Limpiar el costo: eliminar $, puntos, coma y decimales
+      let costoLimpio = '';
+      if (spanCosto && spanCosto.textContent) {
+        costoLimpio = spanCosto.textContent.trim()
+          .replace('$', '')  // Eliminar $
+          .replace(/\./g, '') // Eliminar puntos (separadores de miles)
+          .replace(/,.*$/, ''); // Eliminar coma y todo después de ella (decimales)
+      }
+      
+      // Extraer serial y modelo de los atributos
+      let serial = '';
+      let modelo = '';
+      if (spanAtributos && spanAtributos.textContent) {
+        const atributosTexto = spanAtributos.textContent.trim();
+        
+        // Buscar SERIAL:valor;
+        const serialMatch = atributosTexto.match(/SERIAL:([^;]+)/);
+        if (serialMatch) {
+          serial = serialMatch[1].trim();
+        }
+        
+        // Buscar MODELO:valor;
+        const modeloMatch = atributosTexto.match(/MODELO:([^;]+)/);
+        if (modeloMatch) {
+          modelo = modeloMatch[1].trim();
+        }
+      }
       
       return {
         nit: spanNIT?.textContent?.trim() || '',
         cuentadante: spanCuentadante?.textContent?.trim() || '',
-        descripcion: spanDescripcion?.textContent?.trim() || ''
+        descripcion: spanDescripcion?.textContent?.trim() || '',
+        descripcion_actual: spanDescripActual?.textContent?.trim() || '',
+        costo: costoLimpio,
+        serial: serial,
+        modelo: modelo
       };
     });
     
     console.log(`NIT extraído: "${datos.nit}"`);
     console.log(`Cuentadante extraído: "${datos.cuentadante}"`);
     console.log(`Descripción extraída: "${datos.descripcion}"`);
+    console.log(`Descripción Actual extraída: "${datos.descripcion_actual}"`);
+    console.log(`Costo extraído: "${datos.costo}"`);
+    console.log(`Serial extraído: "${datos.serial}"`);
+    console.log(`Modelo extraído: "${datos.modelo}"`);
 
     console.log(`[${new Date().toISOString()}] Scraping exitoso para placa: ${placa}`);
     
@@ -292,7 +349,11 @@ app.get("/api/consultar", async (req, res) => {
       placa,
       nit: datos.nit,
       cuentadante: datos.cuentadante,
-      descripcion: datos.descripcion
+      descripcion: datos.descripcion,
+      descripcion_actual: datos.descripcion_actual,
+      costo: datos.costo,
+      serial: datos.serial,
+      modelo: datos.modelo
     });
 
   } catch (err) {
