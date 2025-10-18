@@ -59,7 +59,6 @@ EXPOSE 3000
 
 # Variables de entorno para Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 # Comando para iniciar la aplicación
 CMD ["npm", "start"]
