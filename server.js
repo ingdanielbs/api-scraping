@@ -101,24 +101,53 @@ app.get("/api/consultar", async (req, res) => {
     // 6) Escribir la placa en el campo de búsqueda
     console.log("Buscando campo de placa en el iframe...");
     await frame.waitForSelector('input[placeholder*="Placa"]', { visible: true, timeout: 30000 });
-    console.log("Campo encontrado, escribiendo placa...");
+    console.log("Campo encontrado");
     
-    // Limpiar el campo primero
-    await frame.focus('input[placeholder*="Placa"]');
-    await frame.click('input[placeholder*="Placa"]', { clickCount: 3 });
-    await frame.keyboard.press('Backspace');
+    // Obtener información del campo antes de escribir
+    const infoInput = await frame.evaluate(() => {
+      const input = document.querySelector('input[placeholder*="Placa"]');
+      return {
+        id: input?.id,
+        name: input?.name,
+        placeholder: input?.placeholder,
+        value: input?.value,
+        type: input?.type,
+        maxLength: input?.maxLength
+      };
+    });
+    console.log('Info del input:', JSON.stringify(infoInput, null, 2));
     
-    // Escribir la placa
+    // Limpiar el campo usando evaluate para asegurar que se limpia
+    await frame.evaluate(() => {
+      const input = document.querySelector('input[placeholder*="Placa"]');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    });
+    
+    // Pequeña pausa
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Escribir la placa carácter por carácter
     const placaString = String(placa);
     console.log(`Escribiendo placa: "${placaString}" (${placaString.length} caracteres)`);
-    await frame.type('input[placeholder*="Placa"]', placaString, { delay: 50 });
+    
+    await frame.focus('input[placeholder*="Placa"]');
+    await frame.type('input[placeholder*="Placa"]', placaString, { delay: 100 });
+    
+    // Esperar un momento
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Verificar qué se escribió
     const valorEscrito = await frame.evaluate(() => {
       const input = document.querySelector('input[placeholder*="Placa"]');
-      return input ? input.value : 'INPUT NO ENCONTRADO';
+      return {
+        value: input ? input.value : 'INPUT NO ENCONTRADO',
+        length: input ? input.value.length : 0
+      };
     });
-    console.log(`Valor escrito en el campo: "${valorEscrito}"`);
+    console.log(`Valor escrito en el campo: "${valorEscrito.value}" (${valorEscrito.length} caracteres)`);
 
     // 7) Click en el botón de buscar dentro del iframe
     console.log("Buscando botón de búsqueda en el iframe...");
@@ -158,17 +187,16 @@ app.get("/api/consultar", async (req, res) => {
     
     const estadoInmediato = await frame.evaluate(() => {
       const spanNIT = document.querySelector('#span_vIN_VINVEN1NIT');
+      const spanCuentadante = document.querySelector('#span_vIN_VINVEN1CUENTADANTE');
       const spanDescripcion = document.querySelector('#span_vIN_VINVEN1DESCRIPCION');
-      const tdNIT = document.querySelector("body > form > div > div > table > tbody > tr > td > table > tbody > tr:nth-child(6) > td > fieldset > table > tbody > tr:nth-child(1) > td:nth-child(2)");
-      const tdDescripcion = document.querySelector("body > form > div > div > table > tbody > tr > td > table > tbody > tr:nth-child(6) > td > fieldset > table > tbody > tr:nth-child(3) > td:nth-child(2)");
       
       return {
         nitExiste: !!spanNIT,
         nitContenido: spanNIT ? spanNIT.textContent : 'NO EXISTE',
+        cuentadanteExiste: !!spanCuentadante,
+        cuentadanteContenido: spanCuentadante ? spanCuentadante.textContent : 'NO EXISTE',
         descripcionExiste: !!spanDescripcion,
-        descripcionContenido: spanDescripcion ? spanDescripcion.textContent : 'NO EXISTE',
-        tdNITContenido: tdNIT ? tdNIT.textContent : 'NO EXISTE',
-        tdDescripcionContenido: tdDescripcion ? tdDescripcion.textContent : 'NO EXISTE'
+        descripcionContenido: spanDescripcion ? spanDescripcion.textContent : 'NO EXISTE'
       };
     });
     
@@ -197,22 +225,27 @@ app.get("/api/consultar", async (req, res) => {
     while (intentos < maxIntentos) {
       const estado = await frame.evaluate(() => {
         const spanNIT = document.querySelector('#span_vIN_VINVEN1NIT');
+        const spanCuentadante = document.querySelector('#span_vIN_VINVEN1CUENTADANTE');
         const spanDescripcion = document.querySelector('#span_vIN_VINVEN1DESCRIPCION');
         
         return {
           nitExiste: !!spanNIT,
           nitContenido: spanNIT ? spanNIT.textContent?.trim() : '',
           nitLleno: spanNIT && spanNIT.textContent && spanNIT.textContent.trim().length > 0 && spanNIT.textContent.trim() !== '0',
+          cuentadanteExiste: !!spanCuentadante,
+          cuentadanteContenido: spanCuentadante ? spanCuentadante.textContent?.trim() : '',
+          cuentadanteLleno: spanCuentadante && spanCuentadante.textContent && spanCuentadante.textContent.trim().length > 0,
           descripcionExiste: !!spanDescripcion,
           descripcionContenido: spanDescripcion ? spanDescripcion.textContent?.trim() : '',
           descripcionLleno: spanDescripcion && spanDescripcion.textContent && spanDescripcion.textContent.trim().length > 0
         };
       });
       
-      // Esperar a que ambos campos estén llenos
-      if (estado.nitLleno && estado.descripcionLleno) {
+      // Esperar a que los 3 campos estén llenos
+      if (estado.nitLleno && estado.cuentadanteLleno && estado.descripcionLleno) {
         console.log(`✅ Campos llenados después de ${intentos * 0.5} segundos`);
         console.log(`   - NIT: "${estado.nitContenido}"`);
+        console.log(`   - Cuentadante: "${estado.cuentadanteContenido}"`);
         console.log(`   - Descripción: "${estado.descripcionContenido}"`);
         break;
       }
@@ -220,6 +253,7 @@ app.get("/api/consultar", async (req, res) => {
       if (intentos % 10 === 0) { // Log cada 5 segundos
         console.log(`⏳ Intento ${intentos}/${maxIntentos}`);
         console.log(`   - NIT: ${estado.nitLleno ? '✅' : '❌'} "${estado.nitContenido}"`);
+        console.log(`   - Cuentadante: ${estado.cuentadanteLleno ? '✅' : '❌'} "${estado.cuentadanteContenido}"`);
         console.log(`   - Descripción: ${estado.descripcionLleno ? '✅' : '❌'} "${estado.descripcionContenido}"`);
       }
       
@@ -233,20 +267,21 @@ app.get("/api/consultar", async (req, res) => {
     
     console.log("Datos cargados, extrayendo información...");
     
-    // Extraer NIT y Descripción
+    // Extraer NIT, Cuentadante y Descripción
     const datos = await frame.evaluate(() => {
       const spanNIT = document.querySelector('#span_vIN_VINVEN1NIT');
+      const spanCuentadante = document.querySelector('#span_vIN_VINVEN1CUENTADANTE');
       const spanDescripcion = document.querySelector('#span_vIN_VINVEN1DESCRIPCION');
-      const tdNIT = document.querySelector("body > form > div > div > table > tbody > tr > td > table > tbody > tr:nth-child(6) > td > fieldset > table > tbody > tr:nth-child(1) > td:nth-child(2)");
-      const tdDescripcion = document.querySelector("body > form > div > div > table > tbody > tr > td > table > tbody > tr:nth-child(6) > td > fieldset > table > tbody > tr:nth-child(3) > td:nth-child(2)");
       
       return {
-        nit: spanNIT?.textContent?.trim() || tdNIT?.textContent?.trim() || '',
-        descripcion: spanDescripcion?.textContent?.trim() || tdDescripcion?.textContent?.trim() || ''
+        nit: spanNIT?.textContent?.trim() || '',
+        cuentadante: spanCuentadante?.textContent?.trim() || '',
+        descripcion: spanDescripcion?.textContent?.trim() || ''
       };
     });
     
     console.log(`NIT extraído: "${datos.nit}"`);
+    console.log(`Cuentadante extraído: "${datos.cuentadante}"`);
     console.log(`Descripción extraída: "${datos.descripcion}"`);
 
     console.log(`[${new Date().toISOString()}] Scraping exitoso para placa: ${placa}`);
@@ -256,6 +291,7 @@ app.get("/api/consultar", async (req, res) => {
       ok: true,
       placa,
       nit: datos.nit,
+      cuentadante: datos.cuentadante,
       descripcion: datos.descripcion
     });
 
