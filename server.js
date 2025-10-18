@@ -349,7 +349,7 @@ app.get("/api/consultar", async (req, res) => {
       placa,
       nit: datos.nit,
       cuentadante: datos.cuentadante,
-      descripcion: datos.descripcion,
+      elemento: datos.descripcion,
       descripcion_actual: datos.descripcion_actual,
       costo: datos.costo,
       serial: datos.serial,
