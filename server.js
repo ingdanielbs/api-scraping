@@ -1,41 +1,52 @@
-const chromium = require("@sparticuz/chromium");
-const puppeteerCore = require("puppeteer-core");
+const express = require("express");
+const puppeteer = require("puppeteer");
 
-module.exports = async function handler(req, res) {
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(express.json());
+
+// Ruta de salud
+app.get("/", (req, res) => {
+  res.json({ 
+    ok: true, 
+    message: "API Scraping SENA - Funcionando",
+    endpoints: {
+      consultar: "/api/consultar?placa=TU_PLACA"
+    }
+  });
+});
+
+// Endpoint principal de consulta
+app.get("/api/consultar", async (req, res) => {
   const { placa } = req.query || {};
   
   // Validación del parámetro placa
   if (!placa) {
-    res.status(400).json({ 
+    return res.status(400).json({ 
       ok: false, 
       error: "Falta el parámetro 'placa'." 
     });
-    return;
   }
 
   let browser;
   try {
-    // Configuración para @sparticuz/chromium en Vercel
-    const isProduction = process.env.VERCEL || process.env.NODE_ENV === 'production';
+    console.log(`[${new Date().toISOString()}] Iniciando scraping para placa: ${placa}`);
     
-    if (isProduction) {
-      // Producción: usar @sparticuz/chromium
-      browser = await puppeteerCore.launch({
-        args: [
-          ...chromium.args,
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--single-process'
-        ],
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless
-      });
-    } else {
-      // Desarrollo local: necesitarías puppeteer completo instalado
-      throw new Error("Para desarrollo local, instala puppeteer y ajusta el código");
-    }
+    // Lanzar navegador con Puppeteer
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
+    });
 
     const page = await browser.newPage();
     page.setDefaultTimeout(20000); // 20 segundos por cada espera
@@ -77,6 +88,8 @@ module.exports = async function handler(req, res) {
       el => el.textContent?.trim() || ""
     );
 
+    console.log(`[${new Date().toISOString()}] Scraping exitoso para placa: ${placa}`);
+    
     // Respuesta exitosa
     res.status(200).json({ 
       ok: true, 
@@ -85,7 +98,7 @@ module.exports = async function handler(req, res) {
     });
 
   } catch (err) {
-    console.error("Error en el scraping:", err);
+    console.error(`[${new Date().toISOString()}] Error en el scraping:`, err);
     res.status(500).json({ 
       ok: false, 
       error: err.message 
@@ -100,5 +113,11 @@ module.exports = async function handler(req, res) {
       }
     }
   }
-};
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+  console.log(`📡 API disponible en: http://localhost:${PORT}/api/consultar`);
+});
 

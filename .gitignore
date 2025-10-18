@@ -4,7 +4,7 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-# Vercel
+# Vercel (legacy)
 .vercel
 .vercel/**
 
@@ -39,4 +39,10 @@ Desktop.ini
 *.tmp
 .cache/
 .temp/
+
+# Docker
+.dockerignore
+
+# Info file (legacy)
+info.md
 
