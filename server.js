@@ -49,40 +49,54 @@ app.get("/api/consultar", async (req, res) => {
     });
 
     const page = await browser.newPage();
-    page.setDefaultTimeout(20000); // 20 segundos por cada espera
+    page.setDefaultTimeout(30000); // 30 segundos por cada espera
 
     // 1) Navegar al sitio del inventario SENA
+    console.log("Navegando al sitio...");
     await page.goto("https://miinventario.sena.edu.co/Inicio.aspx", {
       waitUntil: "networkidle2",
       timeout: 60000
     });
+    console.log("Sitio cargado correctamente");
 
     // 2) Click en #IMAGE7 (abre el modal de búsqueda)
-    await page.waitForSelector("#IMAGE7", { visible: true });
+    console.log("Buscando botón de búsqueda...");
+    await page.waitForSelector("#IMAGE7", { visible: true, timeout: 30000 });
+    console.log("Botón encontrado, haciendo click...");
     await page.click("#IMAGE7");
 
     // 3) Esperar que aparezca el modal
-    await page.waitForSelector(".gx-ct-body.Form-fx", { visible: true });
+    console.log("Esperando modal...");
+    await page.waitForSelector(".gx-ct-body.Form-fx", { visible: true, timeout: 30000 });
+    console.log("Modal abierto");
 
     // 4) Click en el radiobutton #vOPTION1
-    await page.waitForSelector("#vOPTION1", { visible: true });
+    console.log("Buscando radiobutton...");
+    await page.waitForSelector("#vOPTION1", { visible: true, timeout: 30000 });
+    console.log("Radiobutton encontrado, haciendo click...");
     await page.click("#vOPTION1");
 
     // 5) Escribir la placa en el campo de búsqueda
-    await page.waitForSelector("#vIN_VINVEN1PLACA", { visible: true });
+    console.log("Buscando campo de placa...");
+    await page.waitForSelector("#vIN_VINVEN1PLACA", { visible: true, timeout: 30000 });
+    console.log("Campo encontrado, escribiendo placa...");
     await page.focus("#vIN_VINVEN1PLACA");
     await page.click("#vIN_VINVEN1PLACA", { clickCount: 3 });
     await page.type("#vIN_VINVEN1PLACA", String(placa), { delay: 30 });
 
     // 6) Click en el botón de buscar/aceptar
-    await page.waitForSelector("#BUTTON2", { visible: true });
+    console.log("Buscando botón de búsqueda...");
+    await page.waitForSelector("#BUTTON2", { visible: true, timeout: 30000 });
+    console.log("Botón encontrado, haciendo búsqueda...");
     await Promise.all([
       page.click("#BUTTON2"),
       page.waitForNetworkIdle({ idleTime: 1000, timeout: 30000 }).catch(() => {})
     ]);
 
     // 7) Leer la descripción del resultado
-    await page.waitForSelector("#span_vIN_VINVEN1DESCRIPCION", { visible: true });
+    console.log("Esperando resultado...");
+    await page.waitForSelector("#span_vIN_VINVEN1DESCRIPCION", { visible: true, timeout: 30000 });
+    console.log("Resultado encontrado, extrayendo descripción...");
     const descripcion = await page.$eval(
       "#span_vIN_VINVEN1DESCRIPCION", 
       el => el.textContent?.trim() || ""
