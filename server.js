@@ -70,11 +70,12 @@ app.get("/api/consultar", async (req, res) => {
     await page.waitForSelector(".gx-ct-body.Form-fx", { visible: true, timeout: 30000 });
     console.log("Modal abierto");
 
-    // 4) Click en el radiobutton #vOPTION1
+    // 4) Click en el radiobutton usando XPath
     console.log("Buscando radiobutton...");
-    await page.waitForSelector("#vOPTION1", { visible: true, timeout: 30000 });
+    await page.waitForXPath("/html[1]/body[1]/form[1]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[1]/table[1]/tbody[1]/tr[3]/td[1]/span[1]/label[1]/input[1]", { visible: true, timeout: 30000 });
     console.log("Radiobutton encontrado, haciendo click...");
-    await page.click("#vOPTION1");
+    const [radiobutton] = await page.$x("/html[1]/body[1]/form[1]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[1]/table[1]/tbody[1]/tr[3]/td[1]/span[1]/label[1]/input[1]");
+    await radiobutton.click();
 
     // 5) Escribir la placa en el campo de búsqueda
     console.log("Buscando campo de placa...");
