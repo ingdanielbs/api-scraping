@@ -72,7 +72,11 @@ app.get("/api/consultar", async (req, res) => {
 
     // 4) Click en el radiobutton usando XPath
     console.log("Buscando radiobutton...");
-    await page.waitForXPath("/html[1]/body[1]/form[1]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[1]/table[1]/tbody[1]/tr[3]/td[1]/span[1]/label[1]/input[1]", { visible: true, timeout: 30000 });
+    await page.waitForFunction(() => {
+      const xpath = "/html[1]/body[1]/form[1]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[1]/table[1]/tbody[1]/tr[3]/td[1]/span[1]/label[1]/input[1]";
+      const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+      return result.singleNodeValue && result.singleNodeValue.offsetParent !== null;
+    }, { timeout: 30000 });
     console.log("Radiobutton encontrado, haciendo click...");
     const [radiobutton] = await page.$x("/html[1]/body[1]/form[1]/div[1]/div[1]/table[1]/tbody[1]/tr[1]/td[1]/table[1]/tbody[1]/tr[3]/td[1]/span[1]/label[1]/input[1]");
     await radiobutton.click();
