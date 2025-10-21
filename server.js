@@ -1,10 +1,12 @@
 const express = require("express");
 const puppeteer = require("puppeteer");
+const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+app.use(cors()); // Habilitar CORS para todos los orígenes
 app.use(express.json());
 
 // Ruta de salud
